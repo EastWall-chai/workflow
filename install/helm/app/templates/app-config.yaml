@@ -1,0 +1,86 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.server.metadata.appname}}-{{ .Values.server.metadata.version}}-config
+  namespace: {{ .Values.server.metadata.namespace}}
+  labels:
+    app: {{ .Values.server.metadata.appname}}
+data:
+  application.yml: |
+    server:
+      port: 8080
+      connectionTimeout: 5000
+      tomcat:
+        max-http-post-size: 0
+        uri-encoding: UTF-8
+
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: ["health","info"]
+      endpoint:
+        health:
+          show-details: always
+        
+    spring:  
+      application:
+        name: {{ .Values.server.metadata.appname}}
+      main:
+        allow-bean-definition-overriding: true
+      jackson:
+        date-format: yyyy-MM-dd HH:mm:ss
+        time-zone: GMT+8
+      security:
+        filter:
+          order: 3
+        oauth2:
+          token:
+            store:
+              type: redis
+      datasource:
+        type: com.zaxxer.hikari.HikariDataSource
+        url: jdbc:mysql://{{ .Values.mysql.host}}:{{ .Values.mysql.port}}/{{ .Values.mysql.database}}?useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull&allowMultiQueries=true&useSSL=false
+        username: {{ .Values.mysql.username}}
+        password: {{ .Values.mysql.password}}
+        driver-class-name: com.mysql.jdbc.Driver
+        hikari:
+          connection-timeout: 3000
+          minimum-idle: 2
+          maximum-pool-size: 5
+          auto-commit: true
+          pool-name: DatebookHikariCP
+          max-lifetime: 600000
+          idle-timeout: 12000
+      mvc:
+        throw-exception-if-no-handler-found: true
+      resources:
+        add-mappings: false
+      redis:
+        database: 0 #oauth2鉴权的数据源，不可更改
+        {{- if .Values.redis.cacheDatabase }}
+        cache-database: {{ .Values.redis.cacheDatabase}}
+        {{- end}}
+        port: {{ .Values.redis.port}}
+        host: {{ .Values.redis.host}}
+        timeout: 30000
+        jedis:
+          pool:
+            max-active: 20
+            max-idle: 16
+            max-wait: 3000
+            min-idle: 8
+              
+    mybatis-plus:
+      mapper-locations: {{ .Values.mybatisPlus.mapperLocations }}
+      type-aliases-package: {{ .Values.mybatisPlus.typeAliasesPackage }}
+      global-config.logic-delete-value: 0
+      global-config.logic-not-delete-value: 1
+      global-config.sql-injector: com.baomidou.mybatisplus.mapper.LogicSqlInjector
+      
+    logging:
+      config: classpath:logback-boot.xml
+      
+    orga:
+      uri: {{ .Values.relyon.orga.uri}}
+   

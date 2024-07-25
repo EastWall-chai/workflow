@@ -1,0 +1,93 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.server.metadata.appname}}
+  namespace: {{ .Values.server.metadata.namespace}}
+  labels:
+    app: {{ .Values.server.metadata.appname}}
+spec:
+  selector:
+    app: {{ .Values.server.metadata.appname}}
+  type: {{ .Values.server.spec.type}}
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+    {{- if .Values.server.spec.nodePort}}
+    nodePort: {{ .Values.server.spec.nodePort}}
+    {{- end}}
+
+---
+
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: {{ .Values.server.metadata.appname}}-{{ .Values.server.metadata.version}}
+  namespace: {{ .Values.server.metadata.namespace}}
+spec:
+  replicas: {{ .Values.server.spec.replicas}}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.server.metadata.appname}}
+        version: {{ .Values.server.metadata.version}}
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/node-for-service
+                operator: In
+                values:
+                - carbon
+      imagePullSecrets:      # 获取镜像需要的用户名密码
+      - name: {{ .Values.server.spec.imagePullSecrets}}
+      containers:
+      - name: {{ .Values.server.metadata.appname}}
+        image: {{ .Values.server.aliyun.containerSrv.region}}/{{ .Values.server.aliyun.containerSrv.namespace}}/{{ .Values.server.metadata.imagename}}
+        imagePullPolicy: {{ .Values.server.spec.imagePullPolicy}}
+        env:
+        - name: TZ
+          value: Asia/Shanghai
+        - name: version
+          value: {{ .Values.server.metadata.version}}
+        ports:
+        - name: http
+          containerPort: 8080
+        volumeMounts:
+        - name: application-config
+          mountPath: /opt/application
+        {{- if .Values.server.spec.resources.enable }}
+        resources:
+          limits:
+            cpu: {{ .Values.server.spec.resources.limits.cpu}}
+            memory: {{ .Values.server.spec.resources.limits.memory}}
+          requests:
+            cpu: {{ .Values.server.spec.resources.requests.cpu}}
+            memory: {{ .Values.server.spec.resources.requests.memory}}
+        {{- end}}
+        {{- if .Values.server.spec.readinessProbe.enable }}
+        readinessProbe:
+          httpGet:
+            path: {{ .Values.server.spec.readinessProbe.getPath}}
+            port: 8080
+          initialDelaySeconds: {{ .Values.server.spec.readinessProbe.initialDelaySeconds}}
+          timeoutSeconds: {{ .Values.server.spec.readinessProbe.timeoutSeconds }}
+          periodSeconds: {{ .Values.server.spec.readinessProbe.periodSeconds }}
+          failureThreshold: {{ .Values.server.spec.readinessProbe.failureThreshold }}
+        {{- end}}
+        {{- if .Values.server.spec.livenessProbe.enable }}
+        livenessProbe:
+          httpGet:
+            path: {{ .Values.server.spec.livenessProbe.getPath}}
+            port: 8080
+          initialDelaySeconds: {{ .Values.server.spec.livenessProbe.initialDelaySeconds}}
+          timeoutSeconds: {{ .Values.server.spec.livenessProbe.timeoutSeconds }}
+          periodSeconds: {{ .Values.server.spec.livenessProbe.periodSeconds }}
+          failureThreshold: {{ .Values.server.spec.livenessProbe.failureThreshold }}
+        {{- end}}
+      volumes:
+      - name: application-config
+        configMap:
+          name: {{ .Values.server.metadata.appname}}-{{ .Values.server.metadata.version}}-config

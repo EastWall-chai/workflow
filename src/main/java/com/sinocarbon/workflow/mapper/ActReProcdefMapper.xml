@@ -1,0 +1,373 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.sinocarbon.workflow.dao.ActReProcdefMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.sinocarbon.workflow.pojo.ActReProcdef">
+        <id column="ID_" property="id" />
+        <result column="REV_" property="rev" />
+        <result column="CATEGORY_" property="category" />
+        <result column="NAME_" property="name" />
+        <result column="KEY_" property="key" />
+        <result column="VERSION_" property="version" />
+        <result column="DEPLOYMENT_ID_" property="deploymentId" />
+        <result column="RESOURCE_NAME_" property="resourceName" />
+        <result column="DGRM_RESOURCE_NAME_" property="dgrmResourceName" />
+        <result column="DESCRIPTION_" property="description" />
+        <result column="HAS_START_FORM_KEY_" property="hasStartFormKey" />
+        <result column="HAS_GRAPHICAL_NOTATION_" property="hasGraphicalNotation" />
+        <result column="SUSPENSION_STATE_" property="suspensionState" />
+        <result column="TENANT_ID_" property="tenantId" />
+    </resultMap>
+    
+    <!-- 查询流程定义-部署信息 -->
+    <select id="queryProcessDefinition" resultType="com.sinocarbon.workflow.dto.ProcessDetailslDto" parameterType="com.sinocarbon.workflow.dto.ProcessDetailslDto">
+		SELECT
+			sql1.*,
+			GROUP_CONCAT( aac.NAME_ ) category 
+		FROM 
+		(
+			SELECT
+				arp.DEPLOYMENT_ID_ AS deploymentId,
+				arp.KEY_ AS processDefinitionKey,
+				arp.NAME_ AS processName,
+				arp.DESCRIPTION_ AS processDescription,
+				arp.ID_ AS processDefinitionId,
+				DATE_FORMAT(ard.DEPLOY_TIME_,'%Y-%m-%d %H:%i::%s') AS deployTime,
+				arp.VERSION_  as version,
+				arp.TENANT_ID_ as tenantId,
+				arp.SUSPENSION_STATE_ as state
+			FROM
+				ACT_RE_DEPLOYMENT ard
+				LEFT JOIN ACT_RE_PROCDEF arp ON ard.ID_ = arp.DEPLOYMENT_ID_
+				LEFT JOIN ( 
+					SELECT 
+						arp1.KEY_, max( arp1.VERSION_ ) maxVersion 
+					FROM 
+						ACT_RE_PROCDEF arp1 
+					<if test="tenantId !=null">
+					 WHERE  arp1.TENANT_ID_=#{tenantId}
+					</if>
+					GROUP BY KEY_ ) ss ON ss.KEY_ = arp.KEY_ 
+			WHERE
+				ss.maxVersion = arp.VERSION_ 
+				<if test="processDefinitionKey !=null">
+				  AND  arp.KEY_=#{processDefinitionKey}
+				</if>
+				<if test="tenantId !=null">
+				 AND  arp.TENANT_ID_=#{tenantId}
+				</if>
+				<if test="processDefinitionIds !=null">
+				  AND  arp.KEY_ in 
+					<foreach item="item" index="index" collection="processDefinitionIds"
+				        open="(" separator="," close=")" >
+				        #{item}
+				    </foreach>
+			    </if>
+			GROUP BY
+				arp.KEY_ 
+			ORDER BY
+				ard.DEPLOY_TIME_ DESC
+		) sql1
+			LEFT JOIN ACT_APD_CATE_RELA aacr ON aacr.PRODEF_ID_ = sql1.processDefinitionId
+			LEFT JOIN ACT_APD_CATEGORY aac ON aac.ID_ = aacr.CATEGORY_ID_ 
+		GROUP BY
+			sql1.processDefinitionId
+		ORDER BY
+			sql1.deployTime DESC
+	</select>
+	<!-- 修改流程后，将旧版本的流程定义ID改成最新版的流程定义ID，
+		 需要修改的表包括五张：
+			ACT_RU_TASK， 
+			ACT_HI_TASKINST，
+			ACT_HI_PROCINST，
+			ACT_HI_ACTINST，
+			ACT_RU_EXECUTION -->
+	<update id="updateRuTaskDefId" parameterType="com.sinocarbon.workflow.dto.ProcessDetailslDto">
+		UPDATE ACT_RU_TASK 
+			SET PROC_DEF_ID_ = #{processDefinitionId}
+		where PROC_DEF_ID_ in 
+		<foreach item="item" index="index" collection="processDefinitionIds"
+	        open="(" separator="," close=")" >
+	        #{item}
+	    </foreach>
+	</update>
+	<update id="updateHiTaskDefId" parameterType="com.sinocarbon.workflow.dto.ProcessDetailslDto">
+		UPDATE ACT_HI_TASKINST 
+			SET PROC_DEF_ID_ = #{processDefinitionId}
+		where PROC_DEF_ID_ in 
+		<foreach item="item" index="index" collection="processDefinitionIds"
+	        open="(" separator="," close=")" >
+	        #{item}
+	    </foreach>
+	</update>
+	<update id="updateHiProcinstDefId" parameterType="com.sinocarbon.workflow.dto.ProcessDetailslDto">
+		UPDATE ACT_HI_PROCINST 
+			SET PROC_DEF_ID_ = #{processDefinitionId}
+		where PROC_DEF_ID_ in 
+		<foreach item="item" index="index" collection="processDefinitionIds"
+	        open="(" separator="," close=")" >
+	        #{item}
+	    </foreach>
+	</update>
+	<update id="updateHiActDefId" parameterType="com.sinocarbon.workflow.dto.ProcessDetailslDto">
+		UPDATE ACT_HI_ACTINST 
+			SET PROC_DEF_ID_ = #{processDefinitionId}
+		where PROC_DEF_ID_ in 
+		<foreach item="item" index="index" collection="processDefinitionIds"
+	        open="(" separator="," close=")" >
+	        #{item}
+	    </foreach>
+	</update>
+	<update id="updateRuExecDefId" parameterType="com.sinocarbon.workflow.dto.ProcessDetailslDto">
+		UPDATE ACT_RU_EXECUTION 
+			SET PROC_DEF_ID_ = #{processDefinitionId}
+		where PROC_DEF_ID_ in 
+		<foreach item="item" index="index" collection="processDefinitionIds"
+	        open="(" separator="," close=")" >
+	        #{item}
+	    </foreach>
+	</update>
+	
+	<!-- 根据任务ID修改任务的key，在修改流程后，若旧流程实例的正在进行的任务不存在于新流程中，那就修改任务的key 
+			需要修改的表格包括：
+			ACT_RU_TASK，
+			ACT_HI_ACTINST，
+			ACT_HI_TASKINST，
+			ACT_RU_EXECUTION -->
+	<update id="updateRuTaskKey" parameterType="com.sinocarbon.workflow.dto.TaskDetailsDto">
+		UPDATE ACT_RU_TASK 
+			SET TASK_DEF_KEY_ = #{taskKey}
+		where ID_ = #{taskId} 
+	</update>
+	<update id="updateHiActinstKey" parameterType="com.sinocarbon.workflow.dto.TaskDetailsDto">
+		UPDATE ACT_HI_ACTINST
+			SET ACT_ID_ = #{taskKey}
+		where TASK_ID_ = #{taskId} 
+	</update>
+	<update id="updateHiTaskKey" parameterType="com.sinocarbon.workflow.dto.TaskDetailsDto">
+		UPDATE ACT_HI_TASKINST 
+			SET TASK_DEF_KEY_ = #{taskKey}
+		where ID_ = #{taskId} 
+	</update>
+	<!-- 修改执行表中的任务key,注：单线流程在ACT_RU_EXECUTION中ID不会重复 -->
+	<update id="updateRuExecKey" parameterType="com.sinocarbon.workflow.dto.TaskDetailsDto">
+		UPDATE ACT_RU_EXECUTION 
+			SET ACT_ID_ = #{taskKey}
+		where ID_ = #{executionId} 
+	</update>
+	
+	<delete id="deleteHisFormValue" parameterType="java.lang.String">
+		delete from ACT_HI_DETAIL
+		where TYPE_ = 'FormProperty' and TASK_ID_ = #{taskId}
+	</delete>
+	<select id="queryInstallkeys" resultType="java.util.Map">
+		select 
+			ID_ as `id`,
+			TASK_KEY_ as `key`,
+			TASK_NAME_ as `value`
+		from ACT_APD_INSTALL_KEY
+	</select>
+	
+	<select id="queryCategoryRelaByDefId" parameterType="java.lang.String" resultType="java.util.Map">
+		select 
+			c.NAME_ as name
+		from ACT_APD_CATE_RELA cr
+		left join ACT_APD_CATEGORY c on c.ID_ = cr.CATEGORY_ID_
+		where cr.PRODEF_ID_ = #{processDefintionId}
+	</select>
+	
+	<insert id="addBtnRela" parameterType="com.sinocarbon.workflow.dto.ButtonRelaDto">
+	    INSERT INTO ACT_APD_BTN_RELA
+	            (FROM_TASK_KEY_, TARGET_TASK_KEY_, FROM_TASK_NAME_, TARGET_TASK_NAME_, BTN_NAME_, PROC_DEF_ID_, ROLES, RECIPIENT, STEP_)
+	    VALUES
+	    <foreach collection ="list" item="item" separator =",">
+	         (#{item.fromTaskKey},#{item.targetTaskKey},#{item.fromTaskName},#{item.targetTaskName},#{item.btnName},#{item.procDefId},#{item.roles},#{item.recipient},#{item.step})
+	    </foreach >
+	</insert>
+	
+	<insert id="addActCategoryRela" parameterType="com.sinocarbon.workflow.pojo.ActCategoryRela">
+	    INSERT INTO ACT_APD_CATE_RELA
+	            (CATEGORY_ID_, PRODEF_ID_)
+	    VALUES
+	    <foreach collection ="list" item="item" separator =",">
+	         (#{item.categoryId},#{item.proDefId})
+	    </foreach >
+	</insert>
+	
+	<update id="updBtnRela" parameterType="com.sinocarbon.workflow.dto.ButtonRelaDto">
+		<foreach collection="list" item="item" index="index" open="" close="" separator=";">
+	        update ACT_APD_BTN_RELA
+	        <set> 
+	        	<!-- <if test="item.recipient!=null and item.recipient!=''">RECIPIENT=#{item.recipient}</if>	   
+	        	<if test="item.btnName!=null and item.btnName!=''">BTN_NAME_=#{item.btnName} ,</if> -->
+	        	    	
+	        
+	        	<if test="item.fromTaskKey!=null and item.fromTaskKey!=''">FROM_TASK_KEY_=#{item.fromTaskKey} ,</if>
+	        	<if test="item.targetTaskKey!=null and item.targetTaskKey!=''">TARGET_TASK_KEY_=#{item.targetTaskKey} ,</if>
+	        	<if test="item.fromTaskName!=null and item.fromTaskName!=''">FROM_TASK_NAME_=#{item.fromTaskName} ,</if>
+	        	<if test="item.targetTaskName!=null and item.targetTaskName!=''">TARGET_TASK_NAME_=#{item.targetTaskName} ,</if>
+	        	<if test="item.procDefId!=null and item.procDefId!=''">PROC_DEF_ID_=#{item.procDefId},</if>
+	        	 RECIPIENT=#{item.recipient},BTN_NAME_=#{item.btnName},STEP_=#{item.step}
+	        </set>
+	        where ID_ = #{item.id}
+       </foreach>
+    </update>
+    
+    <select id="queryBtnRela" parameterType="com.sinocarbon.workflow.dto.ButtonRelaDto" resultType="com.sinocarbon.workflow.dto.ButtonRelaDto">
+    	select 
+	    	ID_ as id,
+	    	concat(FROM_TASK_KEY_,TARGET_TASK_KEY_) as `key`,
+	    	FROM_TASK_KEY_ as fromTaskKey,
+	    	TARGET_TASK_KEY_ as targetTaskKey,
+	    	FROM_TASK_NAME_ as fromTaskName,
+	    	TARGET_TASK_NAME_ as targetTaskName,
+	    	BTN_NAME_ as btnName,
+	    	PROC_DEF_ID_ as procDefId,
+	    	ROLES as roles,
+	    	RECIPIENT as recipient,
+	    	STEP_ as step,
+	    	STATUS_ as status
+	    from ACT_APD_BTN_RELA
+    	<where> 
+    		PROC_DEF_ID_ = #{procDefId}
+    		<if test="fromTaskKey!=null and fromTaskKey!=''"> and FROM_TASK_KEY_=#{fromTaskKey} </if>
+        	<if test="targetTaskKey!=null and targetTaskKey!=''"> and TARGET_TASK_KEY_=#{targetTaskKey} </if>
+        	<if test="fromTaskName!=null and fromTaskName!=''"> and FROM_TASK_NAME_=#{fromTaskName} </if>
+        	<if test="targetTaskName!=null and targetTaskName!=''"> and TARGET_TASK_NAME_=#{targetTaskName} </if>
+        	<if test="btnName!=null and btnName!=''"> and BTN_NAME_=#{btnName} </if>
+        </where>
+    </select>
+    
+    <select id="queryRunTaskByProDefId" resultType="com.sinocarbon.workflow.dto.TaskDetailsDto">
+    	select 
+    		ID_ as taskId,
+    		TASK_DEF_KEY_ as taskKey,
+    		NAME_ as taskName
+    	from ACT_RU_TASK 
+    	where PROC_DEF_ID_ = #{processDefinitionId}
+    	<if test="maps != null">
+    		and TASK_DEF_KEY_ in 
+    		<foreach collection="maps" index="index" item="item" open="(" close=")" separator=","> 
+		        #{item.oldKey}
+		    </foreach>
+    	</if>
+    </select>
+    
+    <!-- 根据l流程定义ID和旧修改成新的任务的key
+			需要修改的表格包括：
+			ACT_RU_TASK，
+			ACT_HI_ACTINST，
+			ACT_HI_TASKINST，
+			ACT_RU_EXECUTION -->
+	<update id="updateRuTaskKeyBatch" parameterType="com.sinocarbon.workflow.dto.ProcessDetailslDto">
+		<foreach collection="old2newTaskKeys" item="item" index="index" open="" close="" separator=";">
+			UPDATE ACT_RU_TASK 
+			<set>
+				TASK_DEF_KEY_ = #{item.newKey},
+				NAME_ = #{item.newName},
+			</set>
+			where PROC_DEF_ID_ = #{processDefinitionId}
+			and TASK_DEF_KEY_ = #{item.oldKey}
+		</foreach>
+	</update>
+	<update id="updateHiActinstKeyBatch" parameterType="com.sinocarbon.workflow.dto.ProcessDetailslDto">
+		<foreach collection="old2newTaskKeys" item="item" index="index" open="" close="" separator=";">
+			UPDATE ACT_HI_ACTINST
+				<set>
+					ACT_ID_ = #{item.newKey},
+					ACT_NAME_ = #{item.newName},
+				</set>
+			where PROC_DEF_ID_ = #{processDefinitionId}
+			and ACT_ID_ = #{item.oldKey}
+			and END_TIME_ is null
+		</foreach>
+	</update>
+	<update id="updateHiTaskKeyBatch" parameterType="com.sinocarbon.workflow.dto.ProcessDetailslDto">
+		<foreach collection="old2newTaskKeys" item="item" index="index" open="" close="" separator=";">
+			UPDATE ACT_HI_TASKINST 
+				<set>
+					TASK_DEF_KEY_ = #{item.newKey},
+					NAME_ = #{item.newName},
+				</set>
+			where PROC_DEF_ID_ = #{processDefinitionId}
+			and TASK_DEF_KEY_ =  #{item.oldKey}
+			and END_TIME_ is null
+		</foreach>
+	</update>
+	<!-- 修改执行表中的任务key,注：单线流程在ACT_RU_EXECUTION中ID不会重复 -->
+	<update id="updateRuExecKeyBatch" parameterType="com.sinocarbon.workflow.dto.ProcessDetailslDto">
+		<foreach collection="old2newTaskKeys" item="item" index="index" open="" close="" separator=";">
+			UPDATE ACT_RU_EXECUTION 
+				SET ACT_ID_ = #{item.newKey}
+			where PROC_DEF_ID_ = #{processDefinitionId}
+			and ACT_ID_ = #{item.oldKey}
+		</foreach>
+	</update>
+	
+	<!-- 修改业务流程状态表中的任务key,注：单线流程在ACT_RU_EXECUTION中ID不会重复 -->
+	<update id="updProcinstStatus" parameterType="com.sinocarbon.workflow.dto.ButtonRelaDto">
+		UPDATE ACT_APD_PROCINST_STATUS 
+			<set>
+				STATUS_ = #{status},
+				UPD_DATE_ = #{time}
+			</set>
+		where PROC_INST_ID_ = #{procInstId} 
+	</update>
+	
+	<insert id="insertProcinstStatus" parameterType="com.sinocarbon.workflow.dto.ButtonRelaDto">
+	    INSERT INTO ACT_APD_PROCINST_STATUS
+	            (ID_, PROC_INST_ID_, STATUS_, UPD_DATE_)
+	    VALUES
+	  
+	         (#{id},#{procInstId},#{targetTaskName},#{time})
+	</insert>
+	
+	<insert id="addTaskLimitList" parameterType="com.sinocarbon.workflow.pojo.ActApdTaskLimitDef">
+	    INSERT INTO ACT_APD_TASK_LIMIT_DEF_
+	            (ID_, TASK_KEY_, TASK_NAME_, TIME_DURATION_, PROC_DEF_ID_, TENANT_ID_)
+	    VALUES
+	        <foreach collection ="list" item="item" separator =",">
+	         (#{item.id},#{item.taskKey},#{item.taskName},#{item.timeDuration},#{item.procDefId},#{item.tenantId})
+	    	</foreach >
+	</insert>
+	
+	<insert id="addStatusConfig" parameterType="com.sinocarbon.workflow.pojo.ActApdStatusConf">
+	    INSERT INTO ACT_APD_STATUS_CONF
+	            (ID_, PROC_DEF_KEY_, PROC_DEF_ID_, TENANT_ID_, BIG_STATUS_NAME_, TASK_KEY_, TASK_NAME_ )
+	    VALUES
+	        <foreach collection ="list" item="item" separator =",">
+	         (#{item.id},#{item.procDefKey},#{item.procDefId},#{item.tenantId},#{item.bigStatusName},#{item.taskKey},#{item.taskName})
+	    	</foreach >
+	</insert>
+	
+	<select id="queryProcessStatusConfigGroup" parameterType="com.sinocarbon.workflow.dto.StatusConfigDto" resultType="com.sinocarbon.workflow.dto.StatusConfigDto">
+    	SELECT
+			PROC_DEF_ID_ as procDefId,
+			PROC_DEF_KEY_ as procDefKey,
+			TENANT_ID_ as tenantId,
+			BIG_STATUS_NAME_ as bigStatusName,
+			BIG_STATUS_NAME_ as `key`,
+			GROUP_CONCAT( TASK_KEY_ )  as taskKey,
+			GROUP_CONCAT( TASK_NAME_ ) as taskName 
+		FROM
+			ACT_APD_STATUS_CONF 
+		<where>
+			PROC_DEF_ID_ = ( 
+				SELECT 
+					MAX( PROC_DEF_ID_ ) 
+				FROM ACT_APD_STATUS_CONF 
+				WHERE 1=1
+					<if test="procDefId != null">
+						AND PROC_DEF_ID_ = #{procDefId}
+					</if>
+					<if test="procDefKey != null and tenantId != null">
+						AND (PROC_DEF_KEY_ = #{procDefKey} AND TENANT_ID_ = #{tenantId})
+					</if>
+				 )
+			
+		</where>
+		GROUP BY
+			BIG_STATUS_NAME_
+    </select>
+</mapper>

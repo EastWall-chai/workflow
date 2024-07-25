@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.sinocarbon.workflow.dao.ActCategoryRelaMapper">
+
+    	<!-- 删除标签关系 -->
+	<delete id="deleteActCategoryRela" parameterType="com.sinocarbon.workflow.pojo.ActCategoryRela">
+		delete from ACT_APD_CATE_RELA where
+		1=1
+		<if test="id !=null">and ID_=#{id}</if>
+		<if test="categoryId !=null">and CATEGORY_ID_=#{categoryId}</if>
+		<if test="proDefId !=null">and PRODEF_ID_=#{proDefId}</if>
+	</delete>
+
+    <!-- 查询流程分类-定义关系 -->
+    <select id="queryCategoryRela" resultType="java.util.Map" parameterType="com.sinocarbon.workflow.pojo.ActCategoryRela">
+		SELECT
+			aacr.ID_ AS relaId,
+			aac.ID_ AS categoryId,
+			aac.NAME_ AS categoryName,
+			aacr.PRODEF_ID_ AS processDefinitionId,
+			arp.KEY_ AS processDefinitionKey,
+			arp.NAME_ AS processDefinitionName,
+			arp.VERSION_ AS version,
+			arp.DESCRIPTION_ AS description,
+			GROUP_CONCAT( c.categoryName2 ) AS categoryName2 
+		FROM
+			ACT_APD_CATE_RELA aacr
+			LEFT JOIN ACT_APD_CATEGORY aac ON aacr.CATEGORY_ID_ = aac.ID_
+			LEFT JOIN ACT_RE_PROCDEF arp ON aacr.PRODEF_ID_ = arp.ID_
+			LEFT JOIN (
+				SELECT
+					aacr2.CATEGORY_ID_ AS categoryId2,
+					aacr2.PRODEF_ID_ AS processDefinitionId2,
+					aac2.NAME_ AS categoryName2 
+				FROM
+					ACT_APD_CATE_RELA aacr2
+					LEFT JOIN ACT_APD_CATEGORY aac2 ON aacr2.CATEGORY_ID_ = aac2.ID_ 
+				WHERE
+					aac2.STATUS_ = 1 
+			) c ON c.processDefinitionId2 = aacr.PRODEF_ID_ 
+		WHERE
+			aac.STATUS_ = 1 
+			 <if test="id!=null">AND aacr.ID_=#{id}</if>
+	    	<if test="proDefId">AND aacr.PRODEF_ID_=#{proDefId}</if>
+			<if test="categoryId!=null">AND aacr.CATEGORY_ID_=#{categoryId}</if>
+		GROUP BY
+			aacr.ID_
+	   
+	</select>
+	
+</mapper>

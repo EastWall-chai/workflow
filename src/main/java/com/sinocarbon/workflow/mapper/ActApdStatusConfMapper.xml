@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.sinocarbon.workflow.dao.ActApdStatusConfMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.sinocarbon.workflow.pojo.ActApdStatusConf">
+        <id column="ID_" property="id" />
+        <result column="PROC_DEF_KEY_" property="procDefKey" />
+        <result column="PROC_DEF_ID_" property="procDefId" />
+        <result column="TENANT_ID_" property="tenantId" />
+        <result column="BIG_STATUS_NAME_" property="bigStatusName" />
+        <result column="TASK_KEY_" property="taskKey" />
+        <result column="TASK_NAME_" property="taskName" />
+    </resultMap>
+
+</mapper>

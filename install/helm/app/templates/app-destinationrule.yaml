@@ -1,0 +1,15 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: {{ .Values.server.metadata.appname}}-destinationrule
+  namespace: {{ .Values.server.metadata.namespace}}
+spec:
+  host: {{ .Values.server.metadata.appname}}.{{ .Values.server.metadata.namespace}}.svc.cluster.local
+  subsets:
+  - name: v01
+    labels:
+      version: v0.1
+  - name: v10
+    labels:
+      version: v1.0
+

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.sinocarbon.workflow.dao.ActApdTaskLimitDefMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.sinocarbon.workflow.pojo.ActApdTaskLimitDef">
+        <id column="ID_" property="id" />
+        <result column="TASK_KEY_" property="taskKey" />
+        <result column="TASK_NAME_" property="taskName" />
+        <result column="TIME_DURATION_" property="timeDuration" />
+        <result column="PROC_DEF_ID_" property="procDefId" />
+        <result column="TENANT_ID_" property="tenantId" />
+    </resultMap>
+
+</mapper>

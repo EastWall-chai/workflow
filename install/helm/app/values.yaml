@@ -1,0 +1,70 @@
+#服务配置
+server:
+  metadata:
+    namespace: cat-dev  #命名空间
+    appname: workflow-engine  #服务应用名称
+    version: v1.0 #服务版本
+    #服务版本号的名称，如1.0版本则可以定义为10。此值也代表你在服务调用时应填写的访问版本。
+    #如果存在多个版本，则需要修改app-destinationrule.yaml和app-virtualService.yaml文件，添加发布版本和定义访问版本的方式。
+    versionLabelName: v10
+    imagename: workflow_engine:{{imageversion}}  #镜像名称
+  aliyun:
+    containerSrv:
+      region: registry-vpc.cn-zhangjiakou.aliyuncs.com
+      namespace: sinocarbon
+  spec:
+    type: ClusterIP #服务是否开启外部访问，默认不开启，如果要开启，需修改为NodePort
+    # nodePort: 30000 #如果type为NodePort则需配置服务对外端口，默认不开启
+    # nodeselector: node-4  #服务指定节点启动，默认不配置
+    imagePullPolicy: IfNotPresent
+    replicas: 1 #启动副本数，dev：1；sit：1；prd：2
+    imagePullSecrets: tiger # imagePullSecrets用于拉取阿里云镜像口令
+    # 资源限制，暂不开启
+    resources:
+      enable: true
+      limits:
+        cpu: 450m
+        memory: 800Mi
+      requests:
+        cpu: 170m
+        memory: 350Mi
+    readinessProbe: #服务健康状态检查
+      enable: true
+      getPath: /actuator/info
+      initialDelaySeconds: 120
+      timeoutSeconds: 10
+      periodSeconds: 60 #每60s检测一次
+      failureThreshold: 5
+    livenessProbe:  #服务存活状态检查
+      enable: false
+      getPath: /actuator/info
+      initialDelaySeconds: 120
+      timeoutSeconds: 10
+      periodSeconds: 60
+      failureThreshold: 5
+
+#数据库连接地址
+mysql:
+  host: mysql.basic.svc.cluster.local
+  port: 3306
+  username: root
+  password: SCIIscii123
+  database: database_fill_task
+
+#redis连接地址
+redis:
+#  cacheDatabase: 1  #多数据源的配置，默认不开启。主要根据自己的服务情况来。
+  host: redis.basic.svc.cluster.local
+  port: 6379
+  # username: root
+  # password: SCIIscii123
+  
+mybatisPlus:
+  mapperLocations: classpath:/com/sinocarbon/workflow/mapper/*Mapper.xml
+  typeAliasesPackage: com.sinocarbon.workflow.pojo
+  
+relyon:
+  #服务调用配置，如要删除或增加、修改，相应的需要修改app-config.yaml文件
+  orga:
+    uri: https://api-dev.sciicloud.com/gorg
+

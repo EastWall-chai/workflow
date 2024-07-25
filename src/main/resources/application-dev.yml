@@ -1,0 +1,46 @@
+server:
+  port: 8080
+  connectionTimeout: 5000
+  tomcat:
+    max-http-post-size: 0
+    uri-encoding: UTF-8
+    
+spring:
+  datasource:
+    type: com.zaxxer.hikari.HikariDataSource
+    url: jdbc:mysql://39.99.148.90:30870/database_fill_task?useSSL=false&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull&allowMultiQueries=true&serverTimezone=GMT%2B8 
+    username: root
+    password: SCIIscii123
+    driver-class-name: com.mysql.jdbc.Driver
+    #initialization-mode: always
+    #schema: classpath:db/schema.sql
+    #data: classpath:db/data.sql
+    #continue-on-error: true
+  mvc:
+    throw-exception-if-no-handler-found: true
+  resources:
+    add-mappings: false
+  redis:
+    host: 39.100.16.105
+    port: 30862
+    timeout: 30000
+    lettuce:
+      pool:
+        max-active: 20
+        max-idle: 16
+        max-wait: 3000ms
+        min-idle: 8
+          
+mybatis-plus:
+  mapper-locations: classpath:/com/sinocarbon/workflow/mapper/*Mapper.xml
+  type-aliases-package: com.sinocarbon.workflow.pojo,com.sinocarbon.polaris.commons.pojo
+  global-config.logic-delete-value: 0
+  global-config.logic-not-delete-value: 1
+  global-config.sql-injector: com.baomidou.mybatisplus.mapper.LogicSqlInjector
+  
+logging:
+  config: classpath:logback-boot.xml
+  
+orga:
+  uri: https://api-dev.sciicloud.com/gorg
+

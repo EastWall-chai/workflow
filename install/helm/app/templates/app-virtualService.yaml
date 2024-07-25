@@ -1,0 +1,26 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: {{ .Values.server.metadata.appname}}-virtualservice
+  namespace: {{ .Values.server.metadata.namespace}}
+spec:
+  hosts:
+  - {{ .Values.server.metadata.appname}}.{{ .Values.server.metadata.namespace}}.svc.cluster.local
+  http:
+  - match:
+    - uri:
+        prefix: /v1/
+    rewrite:
+        uri: /
+    route:
+    - destination:
+        host: {{ .Values.server.metadata.appname}}.{{ .Values.server.metadata.namespace}}.svc.cluster.local
+        subset: v10
+        port:
+          number: 8080
+  - route:
+    - destination:
+        port:
+          number: 8080
+        host: {{ .Values.server.metadata.appname}}.{{ .Values.server.metadata.namespace}}.svc.cluster.local
+        subset: v01

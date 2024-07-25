@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.sinocarbon.workflow.dao.ActApdBtnRelaMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.sinocarbon.workflow.pojo.ActApdBtnRela">
+        <id column="ID_" property="id" />
+        <result column="FROM_TASK_KEY_" property="fromTaskKey" />
+        <result column="TARGET_TASK_KEY_" property="targetTaskKey" />
+        <result column="FROM_TASK_NAME_" property="fromTaskName" />
+        <result column="TARGET_TASK_NAME_" property="targetTaskName" />
+        <result column="BTN_NAME_" property="btnName" />
+        <result column="PROC_DEF_ID_" property="procDefId" />
+        <result column="ROLES" property="roles" />
+        <result column="RECIPIENT" property="recipient" />
+        <result column="STATUS_" property="status" />
+        <result column="STEP_" property="step" />
+    </resultMap>
+
+</mapper>
